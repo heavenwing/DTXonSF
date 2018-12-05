@@ -32,6 +32,8 @@
     <Content Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\src\InventoryService\InventoryService.csproj" />
+    <ProjectReference Include="..\src\OrderService\OrderService.csproj" />
     <ProjectReference Include="..\src\WebFront\WebFront.csproj" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.Common.targets" />
