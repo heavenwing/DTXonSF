@@ -46,7 +46,7 @@ namespace WebFront.Pages
                 ModelState.AddModelError("", "Create Order Failed");
                 return Page();
             }
-            return RedirectToPage("success");
+            return RedirectToPage("Success", new { title = "Order Created Successful", desc = string.Format("Order Created,ProductId:{0},Quantity:{1}", OrderInput.ProductId, OrderInput.Quantity) });
         }
     }
 }

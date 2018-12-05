@@ -28,6 +28,8 @@ namespace InventoryService
             {
 
             }
+
+            return true;
         }
 
         /// <summary>
