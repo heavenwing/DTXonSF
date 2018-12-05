@@ -40,7 +40,7 @@ namespace WebFront.Pages
             {
                 ProductId = OrderInput.ProductId,
                 Quantity = OrderInput.Quantity
-            })
+            });
             if (!result)
             {
                 ModelState.AddModelError("", "Create Order Failed");
