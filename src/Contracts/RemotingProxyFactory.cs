@@ -9,16 +9,22 @@ using Microsoft.ServiceFabric.Services.Remoting.V2.FabricTransport.Client;
 
 namespace Contracts
 {
-    public class ContractsRemotingProxyFactory
+    public static class RemotingProxyFactory
     {
         private static readonly ServiceProxyFactory _proxyFactory = new ServiceProxyFactory((c) => new FabricTransportServiceRemotingClientFactory());
         private const string _applicationName = "DTXonSF";
 
 
-        public static IRemotingOrderService CreateRemotingOrderService()
+        public static IRemotingOrderService CreateOrderService()
         {
             var fabricUri = new Uri("fabric:/" + _applicationName + "/" + "OrderService");
-            return _proxyFactory.CreateServiceProxy<IRemotingOrderService>(fabricUri,new ServicePartitionKey(Int64.MaxValue));
+            return _proxyFactory.CreateServiceProxy<IRemotingOrderService>(fabricUri);
+        }
+
+        public static IRemotingInventoryService CreateInventoryService()
+        {
+            var fabricUri = new Uri("fabric:/" + _applicationName + "/" + "InventoryService");
+            return _proxyFactory.CreateServiceProxy<IRemotingInventoryService>(fabricUri);
         }
     }
 }

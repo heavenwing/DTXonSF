@@ -31,7 +31,7 @@ namespace WebFront
                 options.MinimumSameSitePolicy = SameSiteMode.None;
             });
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
-            services.AddScoped(_ => ContractsRemotingProxyFactory.CreateRemotingOrderService());
+            services.AddScoped(_ => RemotingProxyFactory.CreateOrderService());
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

@@ -4,6 +4,7 @@ using Microsoft.ServiceFabric.Data.Collections;
 using Microsoft.ServiceFabric.Services.Communication.Runtime;
 using Microsoft.ServiceFabric.Services.Remoting.Runtime;
 using Microsoft.ServiceFabric.Services.Runtime;
+using System;
 using System.Collections.Generic;
 using System.Fabric;
 using System.Threading;
@@ -20,16 +21,74 @@ namespace InventoryService
             : base(context)
         { }
 
-        public async Task<bool> RemoveStockAsync(int productId, int quantity)
+        private async Task<bool> AddStockAsync(int productId, int quantity)
         {
+            await InitialDataAsync();
+
             var items = await StateManager.GetOrAddAsync<IReliableDictionary2<int, InventoryItem>>("Inventories");
 
             using (ITransaction tx = StateManager.CreateTransaction())
             {
+                var item = await items.TryGetValueAsync(tx, productId);
+                if (item.HasValue)
+                {
+                    item.Value.AddStock(quantity);
+                    await tx.CommitAsync();
+                    ServiceEventSource.Current.Message("Inventory Service Adding Committed");
+                    return true;
+                }
 
+                ServiceEventSource.Current.ServiceMessage(Context, "Product is not exsited. ProductId: {0}.", productId);
+                return false;
             }
+        }
 
-            return true;
+        public async Task<bool> CompensateStockAsync(OrderDto dto)
+        {
+            await InitialDataAsync();
+
+            //NOTE check whether removed stock for this order, now always true
+            if (!await CheckRemovedStockForThisOrder(dto.Id)) return false ;
+
+            return await AddStockAsync(dto.ProductId, dto.Quantity);
+        }
+
+        private Task<bool> CheckRemovedStockForThisOrder(Guid orderId)
+        {
+            return Task.FromResult(orderId != Guid.Empty);
+        }
+
+        public async Task<bool> RemoveStockAsync(OrderDto dto)
+        {
+            await InitialDataAsync();
+
+            //TODO save OrderId for CheckRemovedStockForThisOrder
+
+            var items = await StateManager.GetOrAddAsync<IReliableDictionary2<int, InventoryItem>>("Inventories");
+
+            using (ITransaction tx = StateManager.CreateTransaction())
+            {
+                var item = await items.TryGetValueAsync(tx, dto.ProductId);
+                if (item.HasValue)
+                {
+                    if (item.Value.RemoveStock(dto.Quantity))
+                    {
+                        await items.SetAsync(tx, dto.ProductId, item.Value);
+
+                        //NOTE Local transaction is failed, will cause CreateOrder don't commit
+                        //throw new Exception("Local transaction is failed");
+
+                        await tx.CommitAsync();
+                        ServiceEventSource.Current.Message("Inventory Service Removing Committed");
+                        return true;
+                    }
+                    ServiceEventSource.Current.Message("Inventory Service Removing UnCommitted");
+                    return false;
+                }
+
+                ServiceEventSource.Current.ServiceMessage(Context, "Product is not exsited. ProductId: {0}.", dto.ProductId);
+                return false;
+            }
         }
 
         /// <summary>
@@ -44,54 +103,28 @@ namespace InventoryService
             return this.CreateServiceRemotingReplicaListeners();
         }
 
-        protected override async Task OnOpenAsync(ReplicaOpenMode openMode, CancellationToken cancellationToken)
+        private async Task InitialDataAsync()
         {
-            var items = await StateManager.GetOrAddAsync<IReliableDictionary2<int, InventoryItem>>("Inventories");
-
-            using (ITransaction tx = StateManager.CreateTransaction())
+            try
             {
+                var items = await StateManager.GetOrAddAsync<IReliableDictionary2<int, InventoryItem>>("Inventories");
 
-                if (await items.GetCountAsync(tx) > 0) return;
-                await items.AddAsync(tx, 1, new InventoryItem(1, "Product 1", 10));
-                await items.AddAsync(tx, 2, new InventoryItem(2, "Product 2", 20));
-                await items.AddAsync(tx, 3, new InventoryItem(3, "Product 3", 30));
+                using (ITransaction tx = StateManager.CreateTransaction())
+                {
 
-                await tx.CommitAsync();
+                    if (await items.GetCountAsync(tx) > 0) return;
+
+                    await items.AddAsync(tx, 1, new InventoryItem(1, "Product 1", 10));
+                    await items.AddAsync(tx, 2, new InventoryItem(2, "Product 2", 20));
+                    await items.AddAsync(tx, 3, new InventoryItem(3, "Product 3", 30));
+
+                    await tx.CommitAsync();
+                }
             }
-        }
-
-        /// <summary>
-        /// This is the main entry point for your service replica.
-        /// This method executes when this replica of your service becomes primary and has write status.
-        /// </summary>
-        /// <param name="cancellationToken">Canceled when Service Fabric needs to shut down this service replica.</param>
-        protected override async Task RunAsync(CancellationToken cancellationToken)
-        {
-            // TODO: Replace the following sample code with your own logic 
-            //       or remove this RunAsync override if it's not needed in your service.
-
-            //var myDictionary = await this.StateManager.GetOrAddAsync<IReliableDictionary<string, long>>("myDictionary");
-
-            //while (true)
-            //{
-            //    cancellationToken.ThrowIfCancellationRequested();
-
-            //    using (var tx = this.StateManager.CreateTransaction())
-            //    {
-            //        var result = await myDictionary.TryGetValueAsync(tx, "Counter");
-
-            //        ServiceEventSource.Current.ServiceMessage(this.Context, "Current Counter Value: {0}",
-            //            result.HasValue ? result.Value.ToString() : "Value does not exist.");
-
-            //        await myDictionary.AddOrUpdateAsync(tx, "Counter", 0, (key, value) => ++value);
-
-            //        // If an exception is thrown before calling CommitAsync, the transaction aborts, all changes are 
-            //        // discarded, and nothing is saved to the secondary replicas.
-            //        await tx.CommitAsync();
-            //    }
-
-            //    await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
-            //}
+            catch (Exception ex)
+            {
+                ServiceEventSource.Current.Message("ERROR: " + ex.Message);
+            }
         }
     }
 }

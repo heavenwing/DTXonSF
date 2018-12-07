@@ -5,15 +5,13 @@ VisualStudioVersion = 15.0.28307.136
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{A07B5EB6-E848-4116-A8D0-A826331D98C6}") = "DTXonSF", "DTXonSF\DTXonSF.sfproj", "{7BA06255-5E54-4082-9DA7-FBD4F60CBD01}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebFront", "src\WebFront\WebFront.csproj", "{BD95B5F1-C434-4AA9-972C-2FE98E2FE3F5}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WebFront", "src\WebFront\WebFront.csproj", "{BD95B5F1-C434-4AA9-972C-2FE98E2FE3F5}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Contracts", "src\Contracts\Contracts.csproj", "{EE055C46-4DA4-41F4-A9A6-F17A5E505EF8}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Contracts", "src\Contracts\Contracts.csproj", "{EE055C46-4DA4-41F4-A9A6-F17A5E505EF8}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "RemotingDTX", "RemotingDTX", "{8F72AE36-67BC-4FA1-8D6D-369161CB78CF}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OrderService", "src\OrderService\OrderService.csproj", "{A403E781-803B-4A4C-ABB9-09A39390F974}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OrderService", "src\OrderService\OrderService.csproj", "{A403E781-803B-4A4C-ABB9-09A39390F974}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InventoryService", "src\InventoryService\InventoryService.csproj", "{F8546295-039E-42C0-8535-7497CAA3F1A5}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "InventoryService", "src\InventoryService\InventoryService.csproj", "{F8546295-039E-42C0-8535-7497CAA3F1A5}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

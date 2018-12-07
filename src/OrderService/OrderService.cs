@@ -25,27 +25,62 @@ namespace OrderService
         {
             var items = await StateManager.GetOrAddAsync<IReliableDictionary2<Guid, OrderItem>>("Orders");
 
-            ServiceEventSource.Current.ServiceMessage(Context, "Received create order request. Item: {0}. Quantity: {1}.", dto.Id, dto.Quantity);
+            ServiceEventSource.Current.ServiceMessage(Context,
+                "Received create order request. OrderId: {0}. ProductId: {1}. Quantity: {2}.", dto.Id, dto.ProductId, dto.Quantity);
 
             using (ITransaction tx = StateManager.CreateTransaction())
             {
                 var order = new OrderItem(dto);
                 var item = await items.AddOrUpdateAsync(tx, order.Id, order, (k, v) => order);
 
+                //remove stock
+                var inventoryService = RemotingProxyFactory.CreateInventoryService();
+                var resultRemovingStock = false;
                 try
                 {
-                    //TODO invoke InventoryService
-
-                    await tx.CommitAsync();
-
-                    ServiceEventSource.Current.ServiceMessage(Context, "Order submitted. Item: {0}. Quantity: {1}.", dto.Id, dto.Quantity);
-
-                    return true;
+                    resultRemovingStock = await inventoryService.RemoveStockAsync(dto);
                 }
                 catch (Exception ex)
                 {
-                    ServiceEventSource.Current.ServiceMessage(Context, ex.Message);
+                    ServiceEventSource.Current.ServiceMessage(Context, "Removing stock is error. OrderId: {0}. ProductId: {1}. Quantity: {2}. ErrorMessage: {3}.", dto.Id, dto.ProductId, dto.Quantity, ex.Message);
+                    return false;
+                }
 
+                if (resultRemovingStock)
+                {
+                    ServiceEventSource.Current.ServiceMessage(Context, "Stock removed. OrderId: {0}. ProductId: {1}. Quantity: {2}.", dto.Id, dto.ProductId, dto.Quantity);
+
+                    try
+                    {
+                        //NOTE Local transaction is failed, will to compensate
+                        //throw new Exception("Local transaction is failed");
+
+                        await tx.CommitAsync();
+
+                        ServiceEventSource.Current.ServiceMessage(Context, "Order submitted. OrderId: {0}. ProductId: {1}. Quantity: {2}.", dto.Id, dto.ProductId, dto.Quantity);
+
+                        return true;
+                    }
+                    catch (Exception ex)
+                    {
+                        ServiceEventSource.Current.ServiceMessage(Context, "Submitting order is error. OrderId: {0}. ProductId: {1}. Quantity: {2}. ErrorMessage: {3}.", dto.Id, dto.ProductId, dto.Quantity, ex.Message);
+
+                        //compensation, add stock, maybe with retry
+                        try
+                        {
+                            await inventoryService.CompensateStockAsync(dto);
+                        }
+                        catch (Exception ex1)
+                        {
+                            //if compensating stock raise ex, just write log, then person deal with this error
+                            ServiceEventSource.Current.ServiceMessage(Context, "Compensating stock is error. OrderId: {0}. ProductId: {1}. Quantity: {2}. ErrorMessage: {3}.", dto.Id, dto.ProductId, dto.Quantity, ex1.Message);
+                        }
+                        return false;
+                    }
+                }
+                else
+                {
+                    ServiceEventSource.Current.ServiceMessage(Context, "Removing stock is failed. OrderId: {0}. ProductId: {1}. Quantity: {2}.", dto.Id, dto.ProductId, dto.Quantity);
                     return false;
                 }
             }
@@ -61,40 +96,6 @@ namespace OrderService
         protected override IEnumerable<ServiceReplicaListener> CreateServiceReplicaListeners()
         {
             return this.CreateServiceRemotingReplicaListeners();
-        }
-
-        /// <summary>
-        /// This is the main entry point for your service replica.
-        /// This method executes when this replica of your service becomes primary and has write status.
-        /// </summary>
-        /// <param name="cancellationToken">Canceled when Service Fabric needs to shut down this service replica.</param>
-        protected override async Task RunAsync(CancellationToken cancellationToken)
-        {
-            // TODO: Replace the following sample code with your own logic 
-            //       or remove this RunAsync override if it's not needed in your service.
-
-            //var myDictionary = await this.StateManager.GetOrAddAsync<IReliableDictionary<string, long>>("myDictionary");
-
-            //while (true)
-            //{
-            //    cancellationToken.ThrowIfCancellationRequested();
-
-            //    using (var tx = this.StateManager.CreateTransaction())
-            //    {
-            //        var result = await myDictionary.TryGetValueAsync(tx, "Counter");
-
-            //        ServiceEventSource.Current.ServiceMessage(this.Context, "Current Counter Value: {0}",
-            //            result.HasValue ? result.Value.ToString() : "Value does not exist.");
-
-            //        await myDictionary.AddOrUpdateAsync(tx, "Counter", 0, (key, value) => ++value);
-
-            //        // If an exception is thrown before calling CommitAsync, the transaction aborts, all changes are 
-            //        // discarded, and nothing is saved to the secondary replicas.
-            //        await tx.CommitAsync();
-            //    }
-
-            //    await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
-            //}
         }
     }
 }

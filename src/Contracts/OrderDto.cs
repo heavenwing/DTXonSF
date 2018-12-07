@@ -3,13 +3,19 @@ using System.Runtime.Serialization;
 
 namespace Contracts
 {
-    [DataContract]
+    //NOTE dto with DataContract and(must have) DataMember or Serializable or nothing
+
+    //[DataContract]
+    //[Serializable]
     public class OrderDto
     {
-        public Guid Id { get; set; }
+        //[DataMember]
+        public Guid Id { get; set; } = Guid.NewGuid();
 
+        //[DataMember]
         public int ProductId { get; set; }
 
+        //[DataMember]
         public int Quantity { get; set; }
     }
 }
